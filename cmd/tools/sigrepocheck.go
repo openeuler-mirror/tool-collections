@@ -59,6 +59,8 @@ func buildSigCommand() *cobra.Command {
 
 func CheckSigRepo() error {
 	var wg sync.WaitGroup
+	var totalProjects []string
+	var scanProjects []string
 	var invalidProjects []string
 	fmt.Printf("Starting to validating all of the repos in sig file %s\n", sigRepoCheck.FileName)
 	if _, err := os.Stat(sigRepoCheck.FileName); os.IsNotExist(err) {
@@ -68,17 +70,28 @@ func CheckSigRepo() error {
 	// Setting up gitee handler
 	giteeHandler := NewGiteeHandler(sigRepoCheck.GiteeToken)
 	sigChannel := make(chan string, 50)
-	stopCh := SetupSignalHandler()
 	resultChannel := make(chan string, 50)
-	// Running 5 workers to check the repo status
+
 	go func() {
 		for rs := range resultChannel {
-			invalidProjects = append(invalidProjects, rs)
+			totalProjects = append(totalProjects, rs)
 		}
 	}()
-	for i := 0; i < 5; i++ {
+
+	go func() {
+		for rs := range sigChannel {
+			scanProjects = append(scanProjects, rs)
+		}
+	}()
+
+	// Running 5 workers to collect the projects status
+	size := giteeHandler.CollectRepoPageCount(100, "open_euler")
+	if size <= 0 {
+		return fmt.Errorf("can't get any projects in enterprise 'open_euler'")
+	}
+	for i := 1; i <= 5; i++ {
 		wg.Add(1)
-		go giteeHandler.ValidateRepo(&wg, stopCh, resultChannel, sigChannel, "open_euler")
+		go giteeHandler.CollectRepos(&wg,100, size, i, 5 , "open_euler", resultChannel, )
 	}
 
 	scanner := NewDirScanner("")
@@ -88,10 +101,25 @@ func CheckSigRepo() error {
 	if err != nil {
 		return err
 	}
+
+	for _, scan := range scanProjects {
+		if !Find(totalProjects, scan) {
+			invalidProjects = append(invalidProjects, scan)
+		}
+	}
 	if len(invalidProjects) != 0 {
-		return fmt.Errorf("[Import] Failed to recognize gitee projects: %s\n", strings.Join(invalidProjects,","))
+		return fmt.Errorf("[Import] Failed to recognize gitee %d projects:\n %s\n", len(invalidProjects), strings.Join(invalidProjects,"\n"))
 	}
 	fmt.Printf("Projects successfully verified.")
 	return nil
+}
+
+func Find(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }
 

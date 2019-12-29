@@ -21,7 +21,7 @@ import (
 	"github.com/antihax/optional"
 	"os"
 	"os/signal"
-	"strings"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -91,28 +91,9 @@ func (gh *GiteeHandler) ValidateUser(wg *sync.WaitGroup, stopChannel <-chan stru
 				fmt.Printf("User channel finished, quiting..\n")
 				return
 			} else {
+				fmt.Printf("Starting to validate user %s\n", u)
 				if !gh.checkUserExists(u) {
 					*invalid = append(*invalid, u)
-				}
-			}
-		case <-stopChannel:
-			fmt.Println("quit signal captured, quiting.")
-			return
-		}
-	}
-}
-
-func (gh *GiteeHandler) ValidateRepo(wg *sync.WaitGroup, stopChannel <-chan struct{}, rsChannel chan<- string, repos <-chan string, orgName string) {
-	defer wg.Done()
-	for {
-		select {
-		case u, ok := <- repos:
-			if !ok {
-				fmt.Printf("Repo channel finished, quiting..\n ")
-				return
-			} else {
-				if !gh.checkRepoExists(u, orgName) {
-					rsChannel <- u
 				}
 			}
 		case <-stopChannel:
@@ -138,30 +119,47 @@ func (gh *GiteeHandler) checkUserExists(name string) bool {
 	return true
 }
 
-func (gh *GiteeHandler) checkRepoExists(name, orgName string) bool {
-	option := gitee.GetV5SearchRepositoriesOpts{
+func (gh *GiteeHandler) CollectRepoPageCount(pageSize int, enterpriseName string) int {
+	option := gitee.GetV5EnterprisesEnterpriseReposOpts{
 		AccessToken: optional.NewString(gh.Token),
-		Owner: optional.NewString(orgName),
+		PerPage: optional.NewInt32(int32(pageSize)),
 	}
-	projects, result, err := gh.GiteeClient.SearchApi.GetV5SearchRepositories(gh.Context, name, &option)
+	_, result, err := gh.GiteeClient.RepositoriesApi.GetV5EnterprisesEnterpriseRepos(gh.Context, enterpriseName, &option)
 	if err != nil || result.StatusCode != 200 {
-		fmt.Printf("[Warning] Repo %s does not exists, or failed %v \n", name, err)
-		return false
-	}
-	//check total count
-	if len(projects) == 0 {
-		fmt.Printf("[Warning] can't found project %s from gitee website\n", name)
-		return false
-	}
 
-	var projectNames []string
-	for _, p := range projects {
-		if p.FullName == name {
-			return true
-		}
-		projectNames = append(projectNames, p.FullName)
+		fmt.Printf("[Error] Can't collect projects in enterprise %s, %v \n", enterpriseName, err)
+		return -1
 	}
-	fmt.Printf("[Warning] Unable to get repo %s information, actual search result %s \n", name, strings.Join(projectNames, ","))
-	return false
+	size, ok := result.Header["Total_page"]
+	if !ok {
+		fmt.Printf("[Error] Can't collect 'Total_page' from Header %v", result.Header)
+		return -1
+	}
+	sizeInt, err := strconv.ParseInt(size[0], 10, 0)
+	if err != nil {
+		fmt.Printf("[Error] Can't convert 'Total_page' to integer %v", size)
+		return -1
+	}
+	return int(sizeInt)
+}
+
+func (gh *GiteeHandler) CollectRepos(wg *sync.WaitGroup, pageSize, totalPage, workerIndex, gap int, enterpriseName string, rsChannel chan<- string) {
+	defer wg.Done()
+	for i := workerIndex; i <= totalPage; i+=gap {
+		fmt.Printf("Starting to fetch project lists %d/%d from enterpise %s\n", i, totalPage, enterpriseName)
+		option := gitee.GetV5EnterprisesEnterpriseReposOpts{
+			AccessToken: optional.NewString(gh.Token),
+			PerPage: optional.NewInt32(int32(pageSize)),
+			Page: optional.NewInt32(int32(i)),
+		}
+		projects, result, err := gh.GiteeClient.RepositoriesApi.GetV5EnterprisesEnterpriseRepos(gh.Context, enterpriseName, &option)
+		if err != nil || result.StatusCode != 200 {
+			fmt.Printf("[Warning] Failed to get projects %d/%d from enterprise %s\n", i, totalPage, enterpriseName)
+			continue
+		}
+		for _,p := range projects {
+			rsChannel <- p.FullName
+		}
+	}
 }
 
