@@ -7,5 +7,5 @@ A collection of infrastructure tools
 Software architecture description
 
 #### Installation
-This is test
+This is test tools repository
 
