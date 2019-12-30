@@ -59,6 +59,7 @@ func buildSigCommand() *cobra.Command {
 
 func CheckSigRepo() error {
 	var wg sync.WaitGroup
+	var endwg sync.WaitGroup
 	var totalProjects []string
 	var scanProjects []string
 	var invalidProjects []string
@@ -73,15 +74,19 @@ func CheckSigRepo() error {
 	resultChannel := make(chan string, 50)
 
 	go func() {
+		endwg.Add(1)
 		for rs := range resultChannel {
 			totalProjects = append(totalProjects, rs)
 		}
+		endwg.Done()
 	}()
 
 	go func() {
+		endwg.Add(1)
 		for rs := range sigChannel {
 			scanProjects = append(scanProjects, rs)
 		}
+		endwg.Done()
 	}()
 
 	// Running 5 workers to collect the projects status
@@ -96,11 +101,16 @@ func CheckSigRepo() error {
 
 	scanner := NewDirScanner("")
 	err := scanner.ScanSigYaml(sigRepoCheck.FileName, sigChannel)
+	//Wait all gitee query threads to be finished
 	wg.Wait()
+	//Close the result channels
 	close(resultChannel)
+	//Wait all result collection threads to be finished
+	endwg.Wait()
 	if err != nil {
 		return err
 	}
+	//fmt.Printf("this is the total projects: \n %s", strings.Join(totalProjects, ";"))
 
 	for _, scan := range scanProjects {
 		if !Find(totalProjects, scan) {
