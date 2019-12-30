@@ -6,4 +6,3 @@ RUN cd /root/tool-collections && \
 GOFLAGS=-mod=vendor go build -o validator ./cmd/tools && \
 cp validator /usr/bin
 
-ENTRYPOINT ["validator"]

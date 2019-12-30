@@ -48,6 +48,9 @@ func (ds *DirScanner) ScanAllOwners(filename string, users chan<- string) error 
 	//Scan all owner files
 	var files []string
 	err := filepath.Walk(ds.DirName, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() && info.Name() == "sig-template" {
+			return filepath.SkipDir
+		}
 		if info.Name() == filename {
 			files = append(files, path)
 		}
