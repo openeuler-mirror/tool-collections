@@ -163,3 +163,89 @@ func (gh *GiteeHandler) CollectRepos(wg *sync.WaitGroup, pageSize, totalPage, wo
 	}
 }
 
+func (gh *GiteeHandler) ShowRepoStarStatics(wg *sync.WaitGroup, owner, repo string, resultChannel chan<- string) error {
+	defer wg.Done()
+	options := gitee.GetV5ReposOwnerRepoStargazersOpts{
+		AccessToken: optional.NewString(gh.Token),
+		PerPage: optional.NewInt32(int32(100)),
+	}
+	_, result, err  := gh.GiteeClient.ActivityApi.GetV5ReposOwnerRepoStargazers(gh.Context, owner, repo, &options)
+	if err != nil || result.StatusCode != 200 {
+
+		fmt.Printf("[Error] Can't collect starInfomation in repo %s, %v \n", repo, err)
+		return err
+	}
+	size, ok := result.Header["Total_page"]
+	if !ok {
+		fmt.Printf("[Error] Can't collect 'Total_page' from Header %v", result.Header)
+		return err
+	}
+	sizeInt, err := strconv.ParseInt(size[0], 10, 0)
+	if err != nil {
+		fmt.Printf("[Error] Can't convert 'Total_page' to integer %v", size)
+		return err
+	}
+	for i := 1; i <= int(sizeInt); i++ {
+		options := gitee.GetV5ReposOwnerRepoStargazersOpts{
+			AccessToken: optional.NewString(gh.Token),
+			PerPage: optional.NewInt32(int32(100)),
+			Page: optional.NewInt32(int32(i)),
+		}
+		users, _, err  := gh.GiteeClient.ActivityApi.GetV5ReposOwnerRepoStargazers(gh.Context, owner, repo, &options)
+		if err != nil || len(users) == 0 {
+			fmt.Printf("this is the users %v and error %v\n", users, err)
+			continue
+		}
+		//fmt.Println("Star")
+		for _, u := range users {
+			//fmt.Printf("%s;", u.Name)
+			resultChannel <- u.Name
+		}
+	}
+
+	return nil
+}
+
+func (gh *GiteeHandler) ShowRepoWatchStatics(wg *sync.WaitGroup, owner, repo string, resultChannel chan<- string) error {
+	defer wg.Done()
+	options := gitee.GetV5ReposOwnerRepoSubscribersOpts{
+		AccessToken: optional.NewString(gh.Token),
+		PerPage: optional.NewInt32(int32(100)),
+	}
+	_, result, err  := gh.GiteeClient.ActivityApi.GetV5ReposOwnerRepoSubscribers(gh.Context, owner, repo, &options)
+	if err != nil || result.StatusCode != 200 {
+
+		fmt.Printf("[Error] Can't collect subscribe Infomation in repo %s, %v \n", repo, err)
+		return err
+	}
+	size, ok := result.Header["Total_page"]
+	if !ok {
+		fmt.Printf("[Error] Can't collect 'Total_page' from Header %v", result.Header)
+		return err
+	}
+	sizeInt, err := strconv.ParseInt(size[0], 10, 0)
+	if err != nil {
+		fmt.Printf("[Error] Can't convert 'Total_page' to integer %v", size)
+		return err
+	}
+	for i := 1; i <= int(sizeInt); i++ {
+		options := gitee.GetV5ReposOwnerRepoSubscribersOpts{
+			AccessToken: optional.NewString(gh.Token),
+			PerPage: optional.NewInt32(int32(100)),
+			Page: optional.NewInt32(int32(i)),
+		}
+		users, _, err  := gh.GiteeClient.ActivityApi.GetV5ReposOwnerRepoSubscribers(gh.Context, owner, repo, &options)
+		if err != nil || len(users) == 0 {
+			continue
+		}
+		//fmt.Println("Subscriber")
+		for _, u := range users {
+			//fmt.Printf("%s;", u.Name)
+			resultChannel <- u.Name
+		}
+	}
+
+	return nil
+}
+
+

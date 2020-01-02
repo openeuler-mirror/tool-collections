@@ -6,6 +6,7 @@ require (
 	gitee.com/openeuler/go-gitee v0.0.0-20191223095123-af9962c05d46
 	github.com/antihax/optional v1.0.0
 	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/huaweicloud/golangsdk v0.0.0-20191226095119-6bb917f8c1d1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/gorm v1.9.11 // indirect
 	github.com/kr/pretty v0.1.0 // indirect

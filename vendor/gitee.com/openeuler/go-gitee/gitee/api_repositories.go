@@ -766,7 +766,7 @@ func (a *RepositoriesApiService) GetV5EnterprisesEnterpriseRepos(ctx context.Con
 		localVarPostBody    interface{}
 		localVarFileName    string
 		localVarFileBytes   []byte
-		localVarReturnValue []Project
+		localVarReturnValue [] Project
 	)
 
 	// create path and map variables

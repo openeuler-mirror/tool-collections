@@ -30,6 +30,7 @@ func main() {
 
 	rootCmd.AddCommand(buildOwnerCommand())
 	rootCmd.AddCommand(buildSigCommand())
+	rootCmd.AddCommand(buildStaticsCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Failed to execute command: %v\n", err)
