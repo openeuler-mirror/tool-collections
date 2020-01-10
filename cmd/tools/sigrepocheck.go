@@ -27,6 +27,7 @@ import (
 type SigRepoCheck struct {
 	FileName string
 	GiteeToken string
+	IgnoreProjects string
 }
 
 
@@ -36,6 +37,7 @@ var sigRepoCheck = &SigRepoCheck{}
 func SigInitRunFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&sigRepoCheck.FileName, "filename", "f", "", "the file name of sig file")
 	cmd.Flags().StringVarP(&sigRepoCheck.GiteeToken, "giteetoken", "g", "", "the gitee token")
+	cmd.Flags().StringVarP(&sigRepoCheck.IgnoreProjects, "ignoreprojects", "i", "", "the projects should be ignored, splitted via ','")
 }
 
 func buildSigCommand() *cobra.Command {
@@ -64,6 +66,7 @@ func CheckSigRepo() error {
 	var scanProjects []string
 	var invalidProjects []string
 	fmt.Printf("Starting to validating all of the repos in sig file %s\n", sigRepoCheck.FileName)
+	fmt.Printf("Found projects to ignore %v\n", sigRepoCheck.IgnoreProjects)
 	if _, err := os.Stat(sigRepoCheck.FileName); os.IsNotExist(err) {
 		return fmt.Errorf("sig file not existed %s", sigRepoCheck.FileName)
 	}
@@ -98,8 +101,8 @@ func CheckSigRepo() error {
 		wg.Add(1)
 		go giteeHandler.CollectRepos(&wg,100, size, i, 5 , "open_euler", resultChannel, )
 	}
-
-	scanner := NewDirScanner("")
+	projects := strings.Split(sigRepoCheck.IgnoreProjects, ",")
+	scanner := NewDirScanner("", projects)
 	err := scanner.ScanSigYaml(sigRepoCheck.FileName, sigChannel)
 	//Wait all gitee query threads to be finished
 	wg.Wait()
@@ -118,7 +121,7 @@ func CheckSigRepo() error {
 		}
 	}
 	if len(invalidProjects) != 0 {
-		return fmt.Errorf("[Import] Failed to recognize gitee %d projects:\n %s\n", len(invalidProjects), strings.Join(invalidProjects,"\n"))
+		return fmt.Errorf("[Error] Failed to recognize gitee %d projects:\n %s\n", len(invalidProjects), strings.Join(invalidProjects,"\n"))
 	}
 	fmt.Printf("Projects successfully verified.")
 	return nil

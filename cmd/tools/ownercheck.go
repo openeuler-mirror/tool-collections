@@ -74,14 +74,15 @@ func CheckOwner() error {
 	wg.Add(1)
 	go giteeHandler.ValidateUser(&wg, stopCh, userChannel, &failedUser)
 
-	scanner := NewDirScanner(checkOwnerFlags.DirName)
+	var emptyProjects []string
+	scanner := NewDirScanner(checkOwnerFlags.DirName, emptyProjects)
 	err := scanner.ScanAllOwners(checkOwnerFlags.FileName, userChannel)
 	wg.Wait()
 	if err != nil {
 		return err
 	}
 	if len(failedUser) != 0 {
-		return fmt.Errorf("[Import] Failed to recognize gitee user:\n %s\n", strings.Join(failedUser,"\n"))
+		return fmt.Errorf("[Error] Failed to recognize gitee user:\n %s\n", strings.Join(failedUser,"\n"))
 	}
 	fmt.Printf("Owners successfully verified.")
 	return nil

@@ -35,11 +35,13 @@ type Sig struct {
 
 type DirScanner struct {
 	DirName string
+	ignoreProjects []string
 }
 
-func NewDirScanner(dir string) *DirScanner {
+func NewDirScanner(dir string, projects []string) *DirScanner {
 	return &DirScanner{
 		DirName: dir,
+		ignoreProjects: projects,
 	}
 }
 
@@ -97,7 +99,11 @@ func (ds *DirScanner) ScanSigYaml(filename string, projects chan<- string) error
 
 	for _,s := range sig.Sigs {
 		for _, repo := range s.Repositories {
-			projects <- repo
+			if Find(ds.ignoreProjects, repo) {
+				fmt.Printf("[Warning] Project %s will be ignored due to --ignoreproject options %v\n", repo, ds.ignoreProjects)
+			} else {
+				projects <- repo
+			}
 		}
 	}
 	return nil
