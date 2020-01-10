@@ -82,7 +82,7 @@ func CheckOwner() error {
 		return err
 	}
 	if len(failedUser) != 0 {
-		return fmt.Errorf("[Import] Failed to recognize gitee user:\n %s\n", strings.Join(failedUser,"\n"))
+		return fmt.Errorf("[Error] Failed to recognize gitee user:\n %s\n", strings.Join(failedUser,"\n"))
 	}
 	fmt.Printf("Owners successfully verified.")
 	return nil

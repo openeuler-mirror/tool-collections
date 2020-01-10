@@ -100,7 +100,7 @@ func (ds *DirScanner) ScanSigYaml(filename string, projects chan<- string) error
 	for _,s := range sig.Sigs {
 		for _, repo := range s.Repositories {
 			if Find(ds.ignoreProjects, repo) {
-				fmt.Printf("[Warning] Project %s will be ignored due to --ignoreproject options %v", repo, ds.ignoreProjects)
+				fmt.Printf("[Warning] Project %s will be ignored due to --ignoreproject options %v\n", repo, ds.ignoreProjects)
 			} else {
 				projects <- repo
 			}
