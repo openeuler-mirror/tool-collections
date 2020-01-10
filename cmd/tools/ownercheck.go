@@ -74,7 +74,8 @@ func CheckOwner() error {
 	wg.Add(1)
 	go giteeHandler.ValidateUser(&wg, stopCh, userChannel, &failedUser)
 
-	scanner := NewDirScanner(checkOwnerFlags.DirName)
+	var emptyProjects []string
+	scanner := NewDirScanner(checkOwnerFlags.DirName, emptyProjects)
 	err := scanner.ScanAllOwners(checkOwnerFlags.FileName, userChannel)
 	wg.Wait()
 	if err != nil {

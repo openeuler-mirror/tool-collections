@@ -27,6 +27,7 @@ import (
 type SigRepoCheck struct {
 	FileName string
 	GiteeToken string
+	IgnoreProjects string
 }
 
 
@@ -36,6 +37,7 @@ var sigRepoCheck = &SigRepoCheck{}
 func SigInitRunFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&sigRepoCheck.FileName, "filename", "f", "", "the file name of sig file")
 	cmd.Flags().StringVarP(&sigRepoCheck.GiteeToken, "giteetoken", "g", "", "the gitee token")
+	cmd.Flags().StringVarP(&sigRepoCheck.IgnoreProjects, "ignoreprojects", "i", "", "the projects should be ignored, splitted via ','")
 }
 
 func buildSigCommand() *cobra.Command {
@@ -99,7 +101,8 @@ func CheckSigRepo() error {
 		go giteeHandler.CollectRepos(&wg,100, size, i, 5 , "open_euler", resultChannel, )
 	}
 
-	scanner := NewDirScanner("")
+	projects := strings.Split(checkOwnerFlags.FileName, ",")
+	scanner := NewDirScanner(checkOwnerFlags.DirName, projects)
 	err := scanner.ScanSigYaml(sigRepoCheck.FileName, sigChannel)
 	//Wait all gitee query threads to be finished
 	wg.Wait()
