@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"strings"
 	"sync"
+	"time"
 )
 
 type OpenEulerStatics struct {
@@ -61,6 +62,7 @@ func buildStaticsCommand() *cobra.Command {
 }
 
 func ShowAllStatics() error {
+	fmt.Printf("now is %s\n", time.Now().String())
 	err := ShowStatics()
 	if err != nil {
 		return err
