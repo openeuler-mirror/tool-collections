@@ -38,6 +38,16 @@ type SimplifiedRepo struct {
 	Url       *string  `json:"url,omitempty"`
 }
 
+type PullRequest struct {
+	Id int32
+	Auther string
+	State string
+	RepoName string
+	Number int32
+	Link string
+	CreateAt string
+}
+
 func SetupSignalHandler() (stopCh <-chan struct{}) {
 	close(onlyOneSignalHandler) // panics when called twice
 
@@ -161,6 +171,60 @@ func (gh *GiteeHandler) CollectRepos(wg *sync.WaitGroup, pageSize, totalPage, wo
 			rsChannel <- p.FullName
 		}
 	}
+}
+
+func (gh *GiteeHandler) ShowRepoPRs(wg *sync.WaitGroup, owner, repo string, resultChannel chan<- PullRequest) error {
+	defer wg.Done()
+	options := gitee.GetV5ReposOwnerRepoPullsOpts{
+		AccessToken: optional.NewString(gh.Token),
+		PerPage: optional.NewInt32(int32(100)),
+		State: optional.NewString("all"),
+	}
+	_, result, err  := gh.GiteeClient.PullRequestsApi.GetV5ReposOwnerRepoPulls(gh.Context, owner, repo, &options)
+	if err != nil || result.StatusCode != 200 {
+
+		fmt.Printf("[Error] Can't collect pull request in repo %s, %v \n", repo, err)
+		return err
+	}
+	size, ok := result.Header["Total_page"]
+	if !ok {
+		fmt.Printf("[Error] Can't collect 'Total_page' from Header %v", result.Header)
+		return err
+	}
+	sizeInt, err := strconv.ParseInt(size[0], 10, 0)
+	if err != nil {
+		fmt.Printf("[Error] Can't convert 'Total_page' to integer %v", size)
+		return err
+	}
+	for i := 1; i <= int(sizeInt); i++ {
+		options := gitee.GetV5ReposOwnerRepoPullsOpts{
+			AccessToken: optional.NewString(gh.Token),
+			PerPage: optional.NewInt32(int32(100)),
+			Page: optional.NewInt32(int32(i)),
+			State: optional.NewString("all"),
+		}
+		pulls, _, err  := gh.GiteeClient.PullRequestsApi.GetV5ReposOwnerRepoPulls(gh.Context, owner, repo, &options)
+		if err != nil || len(pulls) == 0 {
+			fmt.Printf("this is the pulls %v and error %v\n", pulls, err)
+			continue
+		}
+		//fmt.Println("Star")
+		for _, u := range pulls {
+			//fmt.Printf("%s;", u.Name)
+			PR := PullRequest{
+				Id: u.Id,
+				Auther:u.User.Name,
+				State:u.State,
+				RepoName: fmt.Sprintf("%s/%s", owner, repo),
+				Number:u.Number,
+				Link:u.HtmlUrl,
+				CreateAt:u.CreatedAt,
+			}
+			resultChannel <- PR
+		}
+	}
+
+	return nil
 }
 
 func (gh *GiteeHandler) ShowRepoStarStatics(wg *sync.WaitGroup, owner, repo string, resultChannel chan<- string) error {

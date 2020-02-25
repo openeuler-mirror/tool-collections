@@ -30,6 +30,10 @@ type OpenEulerStatics struct {
 	GiteeToken string
 	HWUser string
 	HWPassword string
+	ShowStar bool
+	ShowSubscribe bool
+	ShowPR bool
+	Threads int32
 }
 
 
@@ -38,8 +42,12 @@ var openEulerStatics = &OpenEulerStatics{}
 
 func InitStaticsFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&openEulerStatics.GiteeToken, "giteetoken", "g", "", "the gitee token")
-	cmd.Flags().StringVarP(&openEulerStatics.HWUser, "huaweicloud user", "u", "", "the username for huawei cloud")
-	cmd.Flags().StringVarP(&openEulerStatics.HWPassword, "huaweiclud password", "p", "", "the password for huawei cloud")
+	cmd.Flags().StringVarP(&openEulerStatics.HWUser, "user", "u", "", "the username for huawei cloud")
+	cmd.Flags().StringVarP(&openEulerStatics.HWPassword, "password", "p", "", "the password for huawei cloud")
+	cmd.Flags().BoolVarP(&openEulerStatics.ShowStar, "showstar", "s", false, "whether show stars count")
+	cmd.Flags().BoolVarP(&openEulerStatics.ShowSubscribe, "showsubscribe", "w", false, "whether show subscribe count")
+	cmd.Flags().BoolVarP(&openEulerStatics.ShowPR, "showpr", "r", false, "whether show pr count")
+	cmd.Flags().Int32VarP(&openEulerStatics.Threads, "threads", "t", 5, "how many threads to perform")
 }
 
 func buildStaticsCommand() *cobra.Command {
@@ -63,11 +71,11 @@ func buildStaticsCommand() *cobra.Command {
 
 func ShowAllStatics() error {
 	fmt.Printf("now is %s\n", time.Now().String())
-	err := ShowStatics()
+	err := ShowStatics("openeuler")
 	if err != nil {
 		return err
 	}
-	err = ShowStatics2()
+	ShowStatics("src-openeuler")
 	return nil
 }
 
@@ -84,7 +92,7 @@ func ShowObsStatics() error {
 	return nil
 }
 
-func ShowStatics2() error {
+func ShowStatics(organization string) error {
 	var collectingwg sync.WaitGroup
 	var endwg sync.WaitGroup
 	var totalUsers []string
@@ -93,6 +101,8 @@ func ShowStatics2() error {
 	resultChannel := make(chan string, 50)
 	subscribeChannel := make(chan string, 50)
 	projectChannel := make(chan string, 50)
+	prChannel := make(chan PullRequest, 50)
+	prResults := []PullRequest{}
 	// Collecting contributing information from openeuler organization
 	giteeHandler := NewGiteeHandler(openEulerStatics.GiteeToken)
 	// Running 5 workers to collect the projects status
@@ -108,9 +118,9 @@ func ShowStatics2() error {
 		}
 		endwg.Done()
 	}()
-	for i := 1; i <= 5; i++ {
+	for i := 1; i <= int(openEulerStatics.Threads); i++ {
 		collectingwg.Add(1)
-		go giteeHandler.CollectRepos(&collectingwg,100, size, i, 5 , "open_euler", projectChannel, )
+		go giteeHandler.CollectRepos(&collectingwg,100, size, i, int(openEulerStatics.Threads) , "open_euler", projectChannel, )
 	}
 
 	collectingwg.Wait()
@@ -137,127 +147,75 @@ func ShowStatics2() error {
 		endwg.Done()
 	}()
 
-	for i := 0; i <= len(totalProjects); i+=10 {
-		groupwg := sync.WaitGroup{}
-		for j := i; j <= i+9; j++ {
-
-			if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], "src-openeuler/")) {
-				fmt.Printf("Collecting Star info for project %s\n", totalProjects[j])
-				groupwg.Add(1)
-				go giteeHandler.ShowRepoStarStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], resultChannel)
-			}
+	go func() {
+		endwg.Add(1)
+		for pr := range prChannel {
+			prResults = append(prResults, pr)
 		}
-		groupwg.Wait()
+		endwg.Done()
+	}()
+
+	if (openEulerStatics.ShowStar) {
+		for i := 0; i <= len(totalProjects); i+=int(openEulerStatics.Threads){
+			groupwg := sync.WaitGroup{}
+			for j := i; j < i+int(openEulerStatics.Threads); j++ {
+
+				if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], fmt.Sprintf("%s/", organization))) {
+					fmt.Printf("Collecting Star info for project %s\n", totalProjects[j])
+					groupwg.Add(1)
+					go giteeHandler.ShowRepoStarStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], resultChannel)
+				}
+			}
+			groupwg.Wait()
+		}
 	}
 
-	for i := 0; i <= len(totalProjects); i+=10 {
-		groupwg := sync.WaitGroup{}
-		for j := i; j <= i+9; j++ {
+	if (openEulerStatics.ShowSubscribe){
+		for i := 0; i <= len(totalProjects); i+=int(openEulerStatics.Threads) {
+			groupwg := sync.WaitGroup{}
+			for j := i; j < i+int(openEulerStatics.Threads); j++ {
 
-			if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], "src-openeuler/")) {
-				fmt.Printf("Collecting Subsribe info for project %s\n", totalProjects[j])
-				groupwg.Add(1)
-				go giteeHandler.ShowRepoWatchStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], subscribeChannel)
+				if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], fmt.Sprintf("%s/", organization))) {
+					fmt.Printf("Collecting Subsribe info for project %s\n", totalProjects[j])
+					groupwg.Add(1)
+					go giteeHandler.ShowRepoWatchStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], subscribeChannel)
+				}
 			}
+			groupwg.Wait()
 		}
-		groupwg.Wait()
+	}
+
+	if (openEulerStatics.ShowPR) {
+		for i := 0; i <= len(totalProjects); i+=int(openEulerStatics.Threads) {
+			groupwg := sync.WaitGroup{}
+			for j := i; j <= i+int(openEulerStatics.Threads); j++ {
+
+				if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], fmt.Sprintf("%s/", organization))) {
+					fmt.Printf("Collecting PR info for project %s\n", totalProjects[j])
+					groupwg.Add(1)
+					go giteeHandler.ShowRepoPRs(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], prChannel)
+				}
+			}
+			groupwg.Wait()
+		}
 	}
 
 	close(resultChannel)
 	close(subscribeChannel)
+	close(prChannel)
 	endwg.Wait()
-	fmt.Printf("[Result] There are %d users stars src-openeuler project \n: %s \n", len(totalUsers), "")
-	fmt.Printf("[Result] There are %d users subscribe src-openeuler project \n: %s \n", len(totalSubscribeUsers), "")
+	if (openEulerStatics.ShowStar) {
+		fmt.Printf("[Result] There are %d users stars %s project \n.", len(totalUsers), organization)
+	}
+	if (openEulerStatics.ShowSubscribe) {
+		fmt.Printf("[Result] There are %d users subscribe %s project \n.", len(totalSubscribeUsers), organization)
+	}
+	if (openEulerStatics.ShowPR) {
+		fmt.Printf("[Result] The contribution info for  %sis: \n", organization)
+		fmt.Printf("Repo, CreateAt, PR Number, Auther, State, Link\n")
+	}
+	for _,pr := range prResults {
+		fmt.Printf("%s, %s, %d, %s, %s, %s\n", pr.RepoName, pr.CreateAt, pr.Number, pr.Auther, pr.State, pr.Link)
+	}
 	return nil
 }
-
-
-func ShowStatics() error {
-	var collectingwg sync.WaitGroup
-	var endwg sync.WaitGroup
-	var totalUsers []string
-	var totalSubscribeUsers []string
-	var totalProjects []string
-	resultChannel := make(chan string, 50)
-	subscribeChannel := make(chan string, 50)
-	projectChannel := make(chan string, 50)
-	// Collecting contributing information from openeuler organization
-	giteeHandler := NewGiteeHandler(openEulerStatics.GiteeToken)
-	// Running 5 workers to collect the projects status
-	size := giteeHandler.CollectRepoPageCount(100, "open_euler")
-	if size <= 0 {
-		return fmt.Errorf("can't get any projects in enterprise 'open_euler'")
-	}
-
-	go func() {
-		endwg.Add(1)
-		for rs := range projectChannel {
-			totalProjects = append(totalProjects, rs)
-		}
-		endwg.Done()
-	}()
-	for i := 1; i <= 5; i++ {
-		collectingwg.Add(1)
-		go giteeHandler.CollectRepos(&collectingwg,100, size, i, 5 , "open_euler", projectChannel, )
-	}
-
-	collectingwg.Wait()
-	close(projectChannel)
-	endwg.Wait()
-
-	go func() {
-		endwg.Add(1)
-		for rs := range resultChannel {
-			if !Find(totalUsers, rs) {
-				totalUsers = append(totalUsers, rs)
-			}
-		}
-		endwg.Done()
-	}()
-
-	go func() {
-		endwg.Add(1)
-		for rs := range subscribeChannel {
-			if !Find(totalSubscribeUsers, rs) {
-				totalSubscribeUsers = append(totalSubscribeUsers, rs)
-			}
-		}
-		endwg.Done()
-	}()
-
-	for i := 0; i <= len(totalProjects); i+=10 {
-		groupwg := sync.WaitGroup{}
-		for j := i; j <= i+9; j++ {
-
-			if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], "openeuler/")) {
-				fmt.Printf("Collecting Star info for project %s\n", totalProjects[j])
-				groupwg.Add(1)
-				go giteeHandler.ShowRepoStarStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], resultChannel)
-			}
-		}
-		groupwg.Wait()
-	}
-
-	for i := 0; i <= len(totalProjects); i+=10 {
-		groupwg := sync.WaitGroup{}
-		for j := i; j <= i+9; j++ {
-
-			if  j < len(totalProjects) && (strings.HasPrefix(totalProjects[j], "openeuler/")) {
-				fmt.Printf("Collecting Subsribe info for project %s\n", totalProjects[j])
-				groupwg.Add(1)
-				go giteeHandler.ShowRepoWatchStatics(&groupwg, strings.Split(totalProjects[j], "/")[0], strings.Split(totalProjects[j], "/")[1], subscribeChannel)
-			}
-		}
-		groupwg.Wait()
-	}
-
-	close(resultChannel)
-	close(subscribeChannel)
-	endwg.Wait()
-	fmt.Printf("[Result] There are %d users stars openeuler project \n: %s \n", len(totalUsers), "")
-	fmt.Printf("[Result] There are %d users subscribe openeuler project \n: %s \n", len(totalSubscribeUsers), "")
-	return nil
-}
-
-
-

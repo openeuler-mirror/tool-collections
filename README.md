@@ -1,37 +1,60 @@
 # tool-collections
+This tool used to perform validations on sig and projects, as well as do some statistics.
 
-#### 介绍
-A collection of infrastructure tools
+## command: statics show
+It's used to count how many stars, subscribes and prs in `openeuler` and `src-openeuler` organization.
+command help:
+```$xslt
+show current statics of openEuler
 
-#### 软件架构
-软件架构说明
+Usage:
+  validator statics show [flags]
 
+Flags:
+  -g, --giteetoken string   the gitee token
+  -h, --help                help for show
+  -p, --password string     the password for huawei cloud
+  -r, --showpr              whether show pr count
+  -s, --showstar            whether show stars count
+  -w, --showsubscribe       whether show subscribe count
+  -t, --threads int32       how many threads to perform (default 5)
+  -u, --user string         the username for huawei cloud
+``` 
+Note: if it's being used as pr statistics. it will print out all of the detailed
+pr in csv format.
+```$xslt
+Repo, CreateAt, PR Number, Auther, State, Link
+openeuler/website, 2020-02-20T19:13:55+08:00, 65, blueskycs2c, open, https://gitee.com/openeuler/website/pulls/65
+openeuler/website, 2020-02-14T23:43:11+08:00, 64, ZhengyuhangHans, open, https://gitee.com/openeuler/website/pulls/64
+```
 
-#### 安装教程
+## command: check sig repo
+it's used to check the legality of [sig file,](https://gitee.com/openeuler/community/blob/master/sig/sigs.yaml)
+if the repo defined in sig yaml file not exists, the validation would fail.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+command help:
+```$xslt
+check repo legality in sig yaml
 
-#### 使用说明
+Usage:
+  validator sig checkrepo [flags]
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+Flags:
+  -f, --filename string     the file name of sig file
+  -g, --giteetoken string   the gitee token
+  -h, --help                help for checkrepo
+```
+## command: check owner
+it's used to check whether the owner defined in the owner file exists.
 
-#### 参与贡献
+command help:
+check owner legacy on gitee website
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+Usage:
+  validator owner check [flags]
 
-
-#### 码云特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  码云官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解码云上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是码云最有价值开源项目，是码云综合评定出的优秀开源项目
-5.  码云官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  码云封面人物是一档用来展示码云会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+Flags:
+  -d, --dirname string      the folder used to search the owner file
+  -f, --filename string     the file name of owner file
+  -g, --giteetoken string   the gitee token
+  -h, --help                help for check
