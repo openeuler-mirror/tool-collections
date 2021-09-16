@@ -6,7 +6,7 @@ RUN cd /root/tool-collections && \
 GOFLAGS=-mod=vendor go build -o validator ./cmd/tools && \
 cp validator /usr/bin
 
-FROM ubuntu:xenial
+FROM ubuntu:bionic
 
 # Install jdk8 and bunch of build tools
 USER root
@@ -26,7 +26,7 @@ RUN apt update \
         && pip3 install PyYAML
 
 # Setup java path
-ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/jre
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 ENV PATH $PATH:$JAVA_HOME/bin
 
 # Install jenkins slave
