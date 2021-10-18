@@ -1,32 +1,24 @@
-FROM golang:stretch
+FROM openeuler/openeuler:21.03
 
 COPY . /root/tool-collections
 
-RUN cd /root/tool-collections && \
-GOFLAGS=-mod=vendor go build -o validator ./cmd/tools && \
-cp validator /usr/bin
+ENV GOROOT=/usr/local/go
+ENV PATH=$PATH:$GOROOT/bin
+ENV GOPATH=/go
+ENV LANG=en_US.UTF-8
+RUN cp /usr/bin/python3 /usr/bin/python
 
-FROM ubuntu:bionic
+RUN yum update && \
+    yum install -y wget tar git vim subversion python3-pip java-11-openjdk-devel && \
+    pip3 install requests python-jenkins PyYAML && \
+    wget -O go.tar.gz https://golang.org/dl/go1.12.1.linux-amd64.tar.gz && \
+    tar -C /usr/local -zxf go.tar.gz && \
+    rm -f go.tar.gz
 
-# Install jdk8 and bunch of build tools
-USER root
-ENV USER root
-
-RUN apt update \
-        && apt install -y wget \
-        && apt install -y curl \
-        && apt install -y git \
-        && apt install -y subversion \
-        && apt install -y default-jre \
-        && apt install -y vim \
-        && apt install -y python3 \
-        && apt install -y python3-pip \
-        && pip3 install requests \
-        && pip3 install python-jenkins \
-        && pip3 install PyYAML
+RUN cd /root/tool-collections/ && GOFLAGS=-mod=vendor go build -o validator ./cmd/tools && cp validator /usr/bin
 
 # Setup java path
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk
 ENV PATH $PATH:$JAVA_HOME/bin
 
 # Install jenkins slave
@@ -48,7 +40,6 @@ RUN mkdir -p /usr/share/jenkins/ \
   && chmod 644 /usr/share/jenkins/agent.jar \
   && ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar
 
-
 # Install jnlp
 COPY jenkins-agent /usr/local/bin/jenkins-agent
 RUN chmod +x /usr/local/bin/jenkins-agent &&\
@@ -60,6 +51,8 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
 RUN mkdir /home/infra_check
+# Add validator
+RUN cp /usr/bin/validator /home/infra_check
 # Setting up env
 USER ${user}
 ENV AGENT_WORKDIR=${AGENT_WORKDIR}
@@ -69,9 +62,4 @@ VOLUME /home/${user}/.jenkins
 VOLUME ${AGENT_WORKDIR}
 WORKDIR /home/${user}
 
-# Add validator from last build
-COPY --from=0 /usr/bin/validator ../infra_check
-
-
 ENTRYPOINT ["/tini", "--", "jenkins-agent"]
-
