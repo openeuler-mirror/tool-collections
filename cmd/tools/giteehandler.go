@@ -109,7 +109,7 @@ func (gh *GiteeHandler) checkUserExists(name string) bool {
 	}
 	_, result, err := gh.GiteeClient.UsersApi.GetV5UsersUsername(gh.Context, name, &option)
 	if err != nil {
-		if result.StatusCode == 404 {
+		if result != nil && result.StatusCode == 404 {
 			fmt.Printf("[Warning] User %s does not exists. \n", name)
 			return false
 		} else {
