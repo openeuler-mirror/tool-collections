@@ -9,8 +9,8 @@ ENV LANG=en_US.UTF-8
 RUN cp /usr/bin/python3 /usr/bin/python
 
 RUN yum update && \
-    yum install -y wget tar git vim subversion python3-pip java-11-openjdk-devel && \
-    pip3 install requests python-jenkins PyYAML && \
+    yum install -y wget tar git vim subversion python3-pip java-11-openjdk-devel sudo && \
+    pip3 install requests python-jenkins PyYAML pandas openpyxl xlsx2html && \
     wget -O go.tar.gz https://golang.org/dl/go1.12.1.linux-amd64.tar.gz && \
     tar -C /usr/local -zxf go.tar.gz && \
     rm -f go.tar.gz
