@@ -760,13 +760,13 @@ type GetV5EnterprisesEnterpriseReposOpts struct {
 	PerPage     optional.Int32
 }
 
-func (a *RepositoriesApiService) GetV5EnterprisesEnterpriseRepos(ctx context.Context, enterprise string, localVarOptionals *GetV5EnterprisesEnterpriseReposOpts) ([]Project, *http.Response, error) {
+func (a *RepositoriesApiService) GetV5EnterprisesEnterpriseRepos(ctx context.Context, enterprise string, localVarOptionals *GetV5EnterprisesEnterpriseReposOpts) (Project, *http.Response, error) {
 	var (
 		localVarHttpMethod  = strings.ToUpper("Get")
 		localVarPostBody    interface{}
 		localVarFileName    string
 		localVarFileBytes   []byte
-		localVarReturnValue []Project
+		localVarReturnValue Project
 	)
 
 	// create path and map variables
@@ -840,7 +840,7 @@ func (a *RepositoriesApiService) GetV5EnterprisesEnterpriseRepos(ctx context.Con
 		}
 
 		if localVarHttpResponse.StatusCode == 200 {
-			var v []Project
+			var v Project
 			err = a.client.decode(&v, localVarBody, localVarHttpResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
